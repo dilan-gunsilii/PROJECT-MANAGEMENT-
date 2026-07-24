@@ -1,0 +1,148 @@
+:root {
+  color-scheme: dark;
+  --bg: #070b10;
+  --bg-soft: #0d131b;
+  --panel: rgba(13, 19, 27, 0.86);
+  --border: rgba(148, 163, 184, 0.16);
+  --text: #e8eef7;
+  --muted: #98a6bb;
+  --yellow: #d7ff00;
+  --yellow-soft: rgba(215, 255, 0, 0.16);
+  --blue: #28c0ff;
+  --blue-soft: rgba(40, 192, 255, 0.18);
+  --shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(40, 192, 255, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(215, 255, 0, 0.12), transparent 26%),
+    linear-gradient(180deg, #091018 0%, #05070b 100%);
+  color: var(--text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(15, 21, 31, 0.96), rgba(10, 15, 22, 0.96));
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.glow::after {
+  content: '';
+  position: absolute;
+  inset: auto -12% -38% auto;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(215, 255, 0, 0.18), transparent 65%);
+  pointer-events: none;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: var(--blue);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.primary-button,
+.secondary-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, var(--yellow), #bdf400);
+  color: #071018;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(215, 255, 0, 0.28);
+}
+
+.secondary-button {
+  background: rgba(40, 192, 255, 0.12);
+  color: var(--text);
+  border: 1px solid rgba(40, 192, 255, 0.24);
+}
+
+.primary-button:hover,
+.secondary-button:hover {
+  transform: translateY(-1px);
+}
+
+.full-width {
+  width: 100%;
+}
+
+.small {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+}
+
+.link-button {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--blue);
+  cursor: pointer;
+  text-align: left;
+}
+
+.status-chip {
+  border-radius: 16px;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  border: 1px solid transparent;
+}
+
+.status-chip.success {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.22);
+  color: #8cf0ac;
+}
+
+.status-chip.error {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.22);
+  color: #ffb4b4;
+}
+
+.status-chip.compact {
+  padding: 11px 14px;
+}

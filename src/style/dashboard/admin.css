@@ -1,0 +1,52 @@
+.admin-grid {
+  margin-top: 20px;
+}
+
+.admin-card {
+  padding: 24px;
+}
+
+.admin-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-user strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.admin-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-select {
+  min-width: 110px;
+}
+
+@media (max-width: 520px) {
+  .admin-actions,
+  .session-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-user {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
