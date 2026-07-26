@@ -765,6 +765,14 @@ function App() {
       try {
         setError('');
         const createdProject = await createProjectOnBackend(projectName, projectDraft.description);
+        const createdProjectRecord: ProjectRecord = {
+          id: String(createdProject.id),
+          name: createdProject.name,
+          description: createdProject.description ?? undefined,
+          ownerUsername: createdProject.ownerUsername,
+        };
+
+        setProjects((current) => [createdProjectRecord, ...current]);
         setSelectedProjectId(String(createdProject.id));
         setIsProjectMenuOpen(false);
         setDashboardView('gorevlerim');
