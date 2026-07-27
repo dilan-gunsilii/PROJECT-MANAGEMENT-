@@ -490,7 +490,7 @@ function App() {
 
     setError('');
     const defaultVisibleUserIds = isCurrentProjectAdmin
-      ? selectedTeamProject.members.map((member) => String(member.userId))
+      ? (selectedTeamProject?.members ?? []).map((member) => String(member.userId))
       : Array.from(
           new Set([String(currentUser.id), ...selectedTeamProjectAdmins.map((member) => String(member.userId))]),
         );
@@ -1109,7 +1109,7 @@ function App() {
                               >
                                 <span>{project.name}</span>
                                 <small className="muted" style={{ display: 'block', marginTop: 4 }}>
-                                  {project.members.map((member) => `${member.name}: ${member.role === 'ADMIN' ? 'Admin' : 'User'}`).join(' · ')}
+                                  {(project.members ?? []).map((member) => `${member.name}: ${member.role === 'ADMIN' ? 'Admin' : 'User'}`).join(' · ')}
                                 </small>
                               </button>
                               <button className="secondary-button small" type="button" onClick={() => deleteTeamProject(project.id)}>
