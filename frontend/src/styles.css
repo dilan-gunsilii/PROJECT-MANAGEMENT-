@@ -1,0 +1,9 @@
+@import './style/base.css';
+@import './style/layout/shell.css';
+@import './style/layout/sidebar.css';
+@import './style/layout/topbar.css';
+@import './style/dashboard/overview.css';
+@import './style/auth.css';
+@import './style/dashboard/board.css';
+@import './style/dashboard/admin.css';
+@import './style/team.css';

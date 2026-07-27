@@ -1,0 +1,215 @@
+.overview-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+}
+
+.hero-card,
+.activity-card {
+  padding: 24px;
+}
+
+.hero-text {
+  margin: 14px 0 0;
+  font-size: 1rem;
+  max-width: 64ch;
+}
+
+.metrics-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.metric-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.metric-card strong {
+  font-size: 1.7rem;
+  color: var(--yellow);
+}
+
+.metric-card span {
+  margin-top: 6px;
+}
+
+.activity-list {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.activity-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.activity-marker {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 6px;
+  background: linear-gradient(135deg, var(--yellow), var(--blue));
+  flex-shrink: 0;
+}
+
+.task-board {
+  margin-top: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.task-column {
+  display: grid;
+  gap: 16px;
+  min-height: 480px;
+}
+
+.task-column-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.task-column-header h3,
+.task-placeholder h3 {
+  margin: 0;
+}
+
+.task-column-header p,
+.task-placeholder p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.task-column-cards {
+  display: grid;
+  gap: 12px;
+}
+
+.task-card-mini {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.task-card-mini strong {
+  display: block;
+}
+
+.task-card-mini p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.task-card-mini-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.task-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(215, 255, 0, 0.12);
+  color: var(--yellow);
+}
+
+.column-yellow {
+  border-top: 3px solid var(--yellow);
+}
+
+.column-blue {
+  border-top: 3px solid var(--blue);
+}
+
+.column-green {
+  border-top: 3px solid #2dd4bf;
+}
+
+.sidebar-link.active {
+  border-color: rgba(215, 255, 0, 0.42);
+  background: rgba(215, 255, 0, 0.08);
+}
+
+.task-placeholder {
+  margin-top: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.task-summary-grid,
+.dashboard-intro-grid {
+  display: none;
+}
+
+@media (max-width: 1080px) {
+  .task-board {
+    grid-template-columns: 1fr;
+  }
+
+  .task-column {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .task-column {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 520px) {
+  .task-card-mini-top,
+  .task-column-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 1280px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .metrics-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hero-card,
+  .activity-card {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 520px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}

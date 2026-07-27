@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: task-manager-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:taskmanager}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.h2.Driver}
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: ${SPRING_JPA_DATABASE_PLATFORM:org.hibernate.dialect.H2Dialect}
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+server:
+  port: 8080
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:task-manager-backend-dev-secret-key-which-is-long-enough-32chars}
+    expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000}
+
