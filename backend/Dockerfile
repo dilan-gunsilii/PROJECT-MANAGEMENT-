@@ -1,14 +1,12 @@
-# Build aşaması
-FROM maven:3.8.5-openjdk-17 AS build
+FROM maven:3.9.9-eclipse-temurin-21
+
 WORKDIR /app
-COPY . .
+
+COPY pom.xml .
+COPY src ./src
+
 RUN mvn clean package -DskipTests
 
-# Run (Çalıştırma) aşaması
-FROM eclipse-temurin:17-jdk-alpine
-WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]       
 
-
+CMD ["java", "-jar", "target/backend-0.0.1-SNAPSHOT.jar"]

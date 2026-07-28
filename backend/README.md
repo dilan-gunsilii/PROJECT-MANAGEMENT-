@@ -23,4 +23,4 @@ Varsayılan çalışma ortamı PostgreSQL kullanır. Lokal kurulum için `backen
 
 Bu değerleri `backend/.env` dosyasında da tutabilirsin; Docker Compose aynı dosyayı otomatik okur.
 
-Testler `test` profili ile H2 üzerinde çalışır; bu sayede `mvn test` canlı PostgreSQL gerektirmez.
+Testler `test` profili ile PostgreSQL bağlantısına bağlanır; bu yüzden `mvn test` çalıştırmadan önce bir PostgreSQL sunucusu hazır olmalıdır.

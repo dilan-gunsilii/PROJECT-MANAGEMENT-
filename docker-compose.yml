@@ -1,49 +1,37 @@
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: task-manager-postgres
+    image: postgres:16
+    container_name: taskmanager-db
+    restart: always
     environment:
       POSTGRES_DB: taskmanager
       POSTGRES_USER: taskmanager
       POSTGRES_PASSWORD: taskmanager
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - taskmanager_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U taskmanager -d taskmanager"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      - postgres_data:/var/lib/postgresql/data
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: task-manager-backend
+    build: ./backend
+    container_name: taskmanager-backend
+    depends_on:
+      - postgres
+    ports:
+      - "8081:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskmanager
       SPRING_DATASOURCE_USERNAME: taskmanager
       SPRING_DATASOURCE_PASSWORD: taskmanager
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
-      APP_JWT_SECRET: task-manager-docker-secret-key-which-is-long-enough-32chars
-      APP_JWT_EXPIRATION_MS: 86400000
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "8080:8080"
+      APP_JWT_SECRET: task-manager-backend-dev-secret-key-which-is-long-enough-32chars
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: task-manager-frontend
+    build: ./frontend
+    container_name: taskmanager-frontend
     depends_on:
       - backend
     ports:
-      - "5173:80"
+      - "5174:5173"
 
 volumes:
-  taskmanager_postgres_data:
+  postgres_data:
