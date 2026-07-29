@@ -30,16 +30,9 @@ export const taskBoardColumns: StaticTaskColumn[] = [
   },
 ];
 
-export const taskBuilderSubtasks: TaskChecklistItem[] = [
-  { id: 'subtask-1', label: 'Stratejik planlama dokümanını incele', done: true },
-  { id: 'subtask-2', label: 'Paydaş listesini güncelle', done: false },
-];
+export const taskBuilderSubtasks: TaskChecklistItem[] = [];
 
-export const initialProjects: ProjectRecord[] = [
-  { id: 'project-task-manager', name: 'Task Manager Yeniden Yapılandırma' },
-  { id: 'project-marketing', name: 'Müşteri Başlatma Planı' },
-  { id: 'project-mobile', name: 'Mobil Uygulama Tasarımı' },
-];
+export const initialProjects: ProjectRecord[] = [];
 
 export const existingTeams = ['Tasarım Ekibi', 'Geliştirme Ekibi', 'Pazarlama'];
 
@@ -59,6 +52,7 @@ export const emptyTaskDraft: TaskDraft = {
 export const emptyProjectDraft: ProjectDraft = {
   name: '',
   description: '',
+  deadline: '',
 };
 
 export const statusAccentClassMap: Record<StaticTaskColumn['status'], string> = {

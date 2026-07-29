@@ -61,6 +61,7 @@ export type ProjectRecord = {
   id: string;
   name: string;
   description?: string;
+  deadline?: string;
   ownerUsername?: string;
 };
 
@@ -75,6 +76,7 @@ export type BackendProjectResponse = {
 export type ProjectDraft = {
   name: string;
   description: string;
+  deadline: string;
 };
 
 export type TeamMemberRole = 'ADMIN' | 'USER';

@@ -8,6 +8,7 @@ import {
   taskBoardColumns,
   taskBuilderSubtasks,
 } from './app/constants';
+import { getToken, loadUserProjects, saveUserProjects, loadUserTeamProjects, saveUserTeamProjects, loadSelectedTeamProjectId, saveSelectedTeamProjectId, loadUserTaskCards, saveUserTaskCards } from './app/storage';
 import type {
   AuthMode,
   BackendProjectResponse,
@@ -27,7 +28,6 @@ import type {
   TaskPriority,
   UserMe,
 } from './app/types';
-import { getToken } from './app/storage';
 
 function App() {
   const [authMode, setAuthMode] = useState<AuthMode>('login');
@@ -38,7 +38,7 @@ function App() {
   const [dashboardView, setDashboardView] = useState<DashboardView>('gorevlerim');
   const [query, setQuery] = useState('');
   const [projects, setProjects] = useState<ProjectRecord[]>(initialProjects);
-  const [selectedProjectId, setSelectedProjectId] = useState(initialProjects[0].id);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [teamProjects, setTeamProjects] = useState<TeamProjectRecord[]>([]);
   const [selectedTeamProjectId, setSelectedTeamProjectId] = useState<string | null>(null);
   const [taskCards, setTaskCards] = useState<TaskCard[]>([]);
@@ -339,6 +339,9 @@ function App() {
         await deleteProjectFromBackend(projectId);
         const remainingProjects = projects.filter((project) => project.id !== projectId);
         setProjects(remainingProjects);
+        if (currentUser) {
+          saveUserProjects(currentUser.id, remainingProjects);
+        }
         setTaskCards((current) => current.filter((task) => task.projectId !== projectId));
         if (selectedProjectId === projectId) {
           setSelectedProjectId(remainingProjects[0]?.id ?? '');
@@ -433,7 +436,12 @@ function App() {
         ];
       });
     } catch (addMemberError) {
-      setError(addMemberError instanceof Error ? addMemberError.message : 'Kullanıcı eklenemedi.');
+      const message = addMemberError instanceof Error
+        ? addMemberError.message === 'User not found'
+          ? 'Kullanıcı bulunamadı'
+          : addMemberError.message
+        : 'Kullanıcı eklenemedi.';
+      setError(message);
     }
   };
 
@@ -769,10 +777,17 @@ function App() {
           id: String(createdProject.id),
           name: createdProject.name,
           description: createdProject.description ?? undefined,
+          deadline: projectDraft.deadline || undefined,
           ownerUsername: createdProject.ownerUsername,
         };
 
-        setProjects((current) => [createdProjectRecord, ...current]);
+        setProjects((current) => {
+          const nextProjects = [createdProjectRecord, ...current];
+          if (currentUser) {
+            saveUserProjects(currentUser.id, nextProjects);
+          }
+          return nextProjects;
+        });
         setSelectedProjectId(String(createdProject.id));
         setIsProjectMenuOpen(false);
         setDashboardView('gorevlerim');
@@ -925,6 +940,61 @@ function App() {
   useEffect(() => {
     void loadCurrentUser();
   }, [token]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setProjects([]);
+      setSelectedProjectId('');
+      setTeamProjects([]);
+      setSelectedTeamProjectId(null);
+      setTeamMembers([]);
+      setTaskCards([]);
+      return;
+    }
+
+    const savedProjects = loadUserProjects(currentUser.id);
+    setProjects(savedProjects);
+    setSelectedProjectId(savedProjects[0]?.id ?? '');
+
+    const savedTeamProjects = loadUserTeamProjects(currentUser.id);
+    setTeamProjects(savedTeamProjects);
+    setSelectedTeamProjectId(loadSelectedTeamProjectId(currentUser.id) ?? savedTeamProjects[0]?.id ?? null);
+
+    const savedTaskCards = loadUserTaskCards(currentUser.id);
+    setTaskCards(savedTaskCards);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    saveUserProjects(currentUser.id, projects);
+  }, [currentUser, projects]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    saveUserTeamProjects(currentUser.id, teamProjects);
+  }, [currentUser, teamProjects]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    saveUserTaskCards(currentUser.id, taskCards);
+  }, [currentUser, taskCards]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    saveSelectedTeamProjectId(currentUser.id, selectedTeamProjectId);
+  }, [currentUser, selectedTeamProjectId]);
 
   useEffect(() => {
     if (!selectedTeamProject) {
@@ -1511,25 +1581,6 @@ function App() {
                       />
                     </div>
 
-                    {isCurrentProjectAdmin && (
-                      <div className="task-modal-date-group">
-                        <label className="task-modal-label" htmlFor="team-task-assignee">
-                          Atanan üye
-                        </label>
-                        <select
-                          id="team-task-assignee"
-                          className="task-modal-input"
-                          value={teamTaskAssigneeUserId}
-                          onChange={(event) => setTeamTaskAssigneeUserId(event.target.value)}
-                        >
-                          {selectedTeamProject?.members.map((member) => (
-                            <option key={member.id} value={String(member.userId)}>
-                              {member.name} ({member.role === 'ADMIN' ? 'Admin' : 'User'})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
                   </section>
 
                   {isCurrentProjectAdmin ? (
@@ -2028,6 +2079,22 @@ function App() {
                       </button>
                     </div>
                   ))}
+                {selectedProject && selectedProject.ownerUsername === currentUser?.username && ( 
+                  <div className="project-details-panel" style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 8 }}>
+                    {selectedProject.description ? (
+                      <div style={{ marginBottom: 8 }}>
+                        <strong>Açıklama</strong>
+                        <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>{selectedProject.description}</p>
+                      </div>
+                    ) : null}
+                    {selectedProject.deadline ? (
+                      <div>
+                        <strong>Tarih</strong>
+                        <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>{selectedProject.deadline}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
                 </div>
               )}
             </div>
@@ -2037,16 +2104,7 @@ function App() {
           </div>
 
           <div className="topbar-actions">
-            <input
-              className="search-pill"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Görev ara..."
-            />
             <div className="status-chip compact">{isAdmin ? 'Yönetici modu' : 'Kişisel alan'}</div>
-            <button className="secondary-button" type="button" onClick={() => setQuery('')}>
-              Filtrele
-            </button>
             <button className="primary-button" type="button" onClick={openNewProjectModal}>
               Yeni Proje
             </button>
