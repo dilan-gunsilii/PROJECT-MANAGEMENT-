@@ -9,7 +9,7 @@ start "Frontend" cmd /k "cd /d "%~dp0frontend" && echo Starting Frontend... && n
 
 echo.
 echo Both services are starting in separate windows.
-echo   Backend  -^> http://localhost:8080
+echo   Backend  -^> API_BASE_URL
 echo   Frontend -^> http://localhost:5173
 echo.
 pause

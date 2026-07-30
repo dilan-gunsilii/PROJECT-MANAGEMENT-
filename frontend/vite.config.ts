@@ -5,11 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/auth': 'http://localhost:8080',
-      '/api': 'http://localhost:8080',
-      '/users': 'http://localhost:8080',
-      '/projects': 'http://localhost:8080',
-      '/tasks': 'http://localhost:8080',
+      '/auth': 'API_BASE_URL',
+      '/api': 'API_BASE_URL',
+      '/users': 'API_BASE_URL',
+      '/projects': 'API_BASE_URL',
+      '/tasks': 'API_BASE_URL',
     },
   },
 });
