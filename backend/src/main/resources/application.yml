@@ -22,4 +22,3 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET:task-manager-backend-dev-secret-key-which-is-long-enough-32chars}
     expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000}
-
