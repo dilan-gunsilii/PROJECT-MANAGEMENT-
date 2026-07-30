@@ -92,6 +92,7 @@ export type TeamProjectRecord = {
   id: string;
   name: string;
   description: string;
+  deadline?: string;
   members: TeamMember[];
 };
 

@@ -8,7 +8,19 @@ import {
   taskBoardColumns,
   taskBuilderSubtasks,
 } from './app/constants';
-import { getToken, loadUserProjects, saveUserProjects, loadUserTeamProjects, saveUserTeamProjects, loadSelectedTeamProjectId, saveSelectedTeamProjectId, loadUserTaskCards, saveUserTaskCards } from './app/storage';
+import {
+  getToken,
+  loadUserProjects,
+  saveUserProjects,
+  loadUserTeamProjects,
+  saveUserTeamProjects,
+  loadSelectedTeamProjectId,
+  saveSelectedTeamProjectId,
+  loadUserTaskCards,
+  saveUserTaskCards,
+  loadSharedTeamTaskCards,
+  saveSharedTeamTaskCards,
+} from './app/storage';
 import type {
   AuthMode,
   BackendProjectResponse,
@@ -58,6 +70,8 @@ function App() {
   const [teamProjectDraft, setTeamProjectDraft] = useState<ProjectDraft>(emptyProjectDraft);
   const [teamModalSaveAsTemplate, setTeamModalSaveAsTemplate] = useState(false);
   const [teamModalSearch, setTeamModalSearch] = useState('');
+  const [teamModalMemberLookupError, setTeamModalMemberLookupError] = useState('');
+  const [teamProjectDeleteError, setTeamProjectDeleteError] = useState('');
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [teamMemberSearch, setTeamMemberSearch] = useState('');
   const [teamTaskDraft, setTeamTaskDraft] = useState<TaskDraft>(emptyTaskDraft);
@@ -72,19 +86,46 @@ function App() {
   const [error, setError] = useState('');
   const [loadingSession, setLoadingSession] = useState(false);
 
+  const hasUserId = (value: number | string | undefined, userId: number | undefined) => {
+    if (userId === undefined) {
+      return false;
+    }
+
+    return Number(value) === userId;
+  };
+
+  const isTeamTaskCard = (task: TaskCard) => {
+    return (
+      task.createdByUserId !== undefined
+      || task.assignedToUserId !== undefined
+      || task.assignedByUserId !== undefined
+      || task.visibleToUserIds !== undefined
+      || task.collaborationMode !== undefined
+    );
+  };
+
   const isAdmin = currentUser?.role === 'ADMIN';
   const actorName = (currentUser?.username?.trim() || currentUser?.email || 'Proje Sahibi').trim();
-  const isCurrentProjectAdmin = teamMembers.some((member) => member.userId === currentUser?.id && member.role === 'ADMIN');
+  const isCurrentProjectAdmin = teamMembers.some(
+    (member) => hasUserId(member.userId, currentUser?.id) && member.role === 'ADMIN',
+  );
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? projects[0],
     [projects, selectedProjectId],
   );
+  const visibleTeamProjects = useMemo(
+    () =>
+      teamProjects.filter((project) =>
+        project.members.some((member) => hasUserId(member.userId, currentUser?.id)),
+      ),
+    [currentUser?.id, teamProjects],
+  );
   const selectedTeamProject = useMemo(
-    () => teamProjects.find((project) => project.id === selectedTeamProjectId) ?? teamProjects[0] ?? null,
-    [teamProjects, selectedTeamProjectId],
+    () => visibleTeamProjects.find((project) => project.id === selectedTeamProjectId) ?? visibleTeamProjects[0] ?? null,
+    [visibleTeamProjects, selectedTeamProjectId],
   );
   const currentTeamRoleLabel = useMemo(() => {
-    const currentMember = selectedTeamProject?.members.find((member) => member.userId === currentUser?.id);
+    const currentMember = selectedTeamProject?.members.find((member) => hasUserId(member.userId, currentUser?.id));
     return currentMember?.role === 'ADMIN' ? 'Admin' : 'User';
   }, [currentUser?.id, selectedTeamProject]);
   const selectedTeamProjectAdmins = useMemo(
@@ -107,12 +148,8 @@ function App() {
     return selectedTeamProjectTasks.filter((task) => {
       const canViewByVisibility =
         !task.visibleToUserIds || task.visibleToUserIds.includes(currentUser?.id ?? Number.MIN_SAFE_INTEGER);
-      const createdByCurrentUser = task.createdByUserId === currentUser?.id;
-      const createdByAdmin = selectedTeamProject.members.some(
-        (member) => member.userId === task.createdByUserId && member.role === 'ADMIN',
-      );
 
-      return canViewByVisibility && (createdByCurrentUser || createdByAdmin);
+      return canViewByVisibility;
     });
   }, [currentUser?.id, isCurrentProjectAdmin, selectedTeamProject, selectedTeamProjectTasks]);
   const teamTasksByStatus = useMemo(
@@ -213,6 +250,7 @@ function App() {
         : [],
     );
     setTeamModalSearch('');
+    setTeamModalMemberLookupError('');
     setDashboardView('takim');
     setIsTeamProjectModalOpen(true);
   };
@@ -220,6 +258,7 @@ function App() {
   const closeTeamProjectModal = () => {
     setIsTeamProjectModalOpen(false);
     setTeamProjectDraft(emptyProjectDraft);
+    setTeamModalMemberLookupError('');
   };
 
   const openTeamMembersModal = () => {
@@ -302,7 +341,7 @@ function App() {
   };
 
   const openTeamProjectPage = (projectId: string) => {
-    const nextProject = teamProjects.find((project) => project.id === projectId);
+    const nextProject = visibleTeamProjects.find((project) => project.id === projectId);
     if (!nextProject) {
       return;
     }
@@ -332,6 +371,14 @@ function App() {
     });
   };
 
+  const getProjectDeleteErrorMessage = (error: unknown) => {
+    if (error instanceof Error && error.message === 'You cannot access this project') {
+      return 'Sadece adminler silebilir.';
+    }
+
+    return error instanceof Error ? error.message : 'Proje silinemedi.';
+  };
+
   const deleteIndividualProject = (projectId: string) => {
     void (async () => {
       try {
@@ -347,7 +394,7 @@ function App() {
           setSelectedProjectId(remainingProjects[0]?.id ?? '');
         }
       } catch (deleteError) {
-        setError(deleteError instanceof Error ? deleteError.message : 'Proje silinemedi.');
+        setError(getProjectDeleteErrorMessage(deleteError));
       }
     })();
   };
@@ -356,17 +403,21 @@ function App() {
     void (async () => {
       try {
         setError('');
+        setTeamProjectDeleteError('');
         await deleteProjectFromBackend(projectId);
         const remainingProjects = teamProjects.filter((project) => project.id !== projectId);
+        const remainingVisibleProjects = remainingProjects.filter((project) =>
+          project.members.some((member) => hasUserId(member.userId, currentUser?.id)),
+        );
         setTeamProjects(remainingProjects);
         setTaskCards((current) => current.filter((task) => task.projectId !== projectId));
         if (selectedTeamProjectId === projectId) {
-          const nextProject = remainingProjects[0] ?? null;
+          const nextProject = remainingVisibleProjects[0] ?? null;
           setSelectedTeamProjectId(nextProject?.id ?? null);
           setTeamMembers(nextProject?.members ?? []);
         }
       } catch (deleteError) {
-        setError(deleteError instanceof Error ? deleteError.message : 'Takım projesi silinemedi.');
+        setTeamProjectDeleteError(getProjectDeleteErrorMessage(deleteError));
       }
     })();
   };
@@ -417,10 +468,11 @@ function App() {
 
     try {
       setError('');
+      setTeamModalMemberLookupError('');
       const resolved = await requestJson<BackendUserResponse>(`/users/resolve?identity=${encodeURIComponent(name)}`);
 
       updateCurrentTeamMembers((current) => {
-        const exists = current.some((member) => member.userId === resolved.id);
+        const exists = current.some((member) => hasUserId(member.userId, resolved.id));
         if (exists) {
           return current;
         }
@@ -436,11 +488,12 @@ function App() {
         ];
       });
     } catch (addMemberError) {
-      const message = addMemberError instanceof Error
-        ? addMemberError.message === 'User not found'
-          ? 'Kullanıcı bulunamadı'
-          : addMemberError.message
-        : 'Kullanıcı eklenemedi.';
+      if (addMemberError instanceof Error && addMemberError.message === 'User not found') {
+        setTeamModalMemberLookupError('kişi bulunamadı');
+        return;
+      }
+
+      const message = addMemberError instanceof Error ? addMemberError.message : 'Kullanıcı eklenemedi.';
       setError(message);
     }
   };
@@ -569,6 +622,27 @@ function App() {
     setTeamNewSubtaskText('');
   };
 
+  const editTeamTaskChecklistItem = (itemId: string) => {
+    const currentItem = teamTaskChecklist.find((item) => item.id === itemId);
+    if (!currentItem) {
+      return;
+    }
+
+      const nextLabel = window.prompt('Alt görevi düzenle', currentItem.label);
+    if (nextLabel === null) {
+      return;
+    }
+
+    const trimmedLabel = nextLabel.trim();
+    if (!trimmedLabel) {
+      return;
+    }
+
+    setTeamTaskChecklist((current) =>
+      current.map((item) => (item.id === itemId ? { ...item, label: trimmedLabel } : item)),
+    );
+  };
+
   const removeTeamTaskChecklistItem = (itemId: string) => {
     setTeamTaskChecklist((current) => current.filter((item) => item.id !== itemId));
   };
@@ -595,7 +669,7 @@ function App() {
         const projectMembers = currentUser
           ? [
               { id: `member-owner-${currentUser.id}`, name: actorName, role: 'ADMIN', userId: currentUser.id },
-              ...teamMembers.filter((member) => member.userId !== currentUser.id),
+              ...teamMembers.filter((member) => !hasUserId(member.userId, currentUser.id)),
             ]
           : [...teamMembers];
 
@@ -604,8 +678,9 @@ function App() {
             id: String(createdProject.id),
             name: createdProject.name,
             description: createdProject.description ?? '',
+            deadline: teamProjectDraft.deadline || undefined,
             members: projectMembers.map((member) =>
-              member.userId === currentUser?.id ? { ...member, role: 'ADMIN' } : { ...member, role: 'USER' },
+              hasUserId(member.userId, currentUser?.id) ? { ...member, role: 'ADMIN' } : { ...member, role: 'USER' },
             ),
           },
           ...current,
@@ -613,7 +688,7 @@ function App() {
         setSelectedTeamProjectId(String(createdProject.id));
         setTeamMembers(
           projectMembers.map((member) =>
-            member.userId === currentUser?.id ? { ...member, role: 'ADMIN' } : { ...member, role: 'USER' },
+            hasUserId(member.userId, currentUser?.id) ? { ...member, role: 'ADMIN' } : { ...member, role: 'USER' },
           ),
         );
         setIsProjectMenuOpen(false);
@@ -759,6 +834,21 @@ function App() {
     setProjects((current) => current.map((project) => (project.id === selectedProjectId ? { ...project, name } : project)));
   };
 
+  const syncTeamProjectsFromStorage = (userId: number) => {
+    const savedTeamProjects = loadUserTeamProjects(userId);
+    const visibleSavedTeamProjects = savedTeamProjects.filter((project) =>
+      project.members.some((member) => hasUserId(member.userId, userId)),
+    );
+    const savedSelectedTeamProjectId = loadSelectedTeamProjectId(userId);
+    const nextSelectedTeamProjectId =
+      savedSelectedTeamProjectId && visibleSavedTeamProjects.some((project) => project.id === savedSelectedTeamProjectId)
+        ? savedSelectedTeamProjectId
+        : visibleSavedTeamProjects[0]?.id ?? null;
+
+    setTeamProjects(savedTeamProjects);
+    setSelectedTeamProjectId(nextSelectedTeamProjectId);
+  };
+
   const openProjectPage = (projectId: string) => {
     setSelectedProjectId(projectId);
     setIsProjectMenuOpen(false);
@@ -818,6 +908,29 @@ function App() {
       },
     ]);
     setNewSubtaskText('');
+  };
+
+  const editChecklistItem = (itemId: string) => {
+    const currentItem = taskChecklist.find((item) => item.id === itemId);
+    if (!currentItem) {
+      return;
+    }
+
+      const nextLabel = window.prompt('Alt görevi düzenle', currentItem.label);
+    if (nextLabel === null) {
+      return;
+    }
+
+    const trimmedLabel = nextLabel.trim();
+    if (!trimmedLabel) {
+      return;
+    }
+
+    setTaskChecklist((current) => current.map((item) => (item.id === itemId ? { ...item, label: trimmedLabel } : item)));
+  };
+
+  const removeChecklistItem = (itemId: string) => {
+    setTaskChecklist((current) => current.filter((item) => item.id !== itemId));
   };
 
   const moveTaskToStatus = (taskId: string, status: StaticTaskColumn['status']) => {
@@ -956,12 +1069,40 @@ function App() {
     setProjects(savedProjects);
     setSelectedProjectId(savedProjects[0]?.id ?? '');
 
-    const savedTeamProjects = loadUserTeamProjects(currentUser.id);
-    setTeamProjects(savedTeamProjects);
-    setSelectedTeamProjectId(loadSelectedTeamProjectId(currentUser.id) ?? savedTeamProjects[0]?.id ?? null);
+    syncTeamProjectsFromStorage(currentUser.id);
 
-    const savedTaskCards = loadUserTaskCards(currentUser.id);
-    setTaskCards(savedTaskCards);
+    const personalTaskCards = loadUserTaskCards(currentUser.id);
+    const sharedTeamTaskCards = loadSharedTeamTaskCards(currentUser.id);
+    const mergedTaskCards = [...personalTaskCards, ...sharedTeamTaskCards].filter(
+      (task, index, all) => all.findIndex((candidate) => candidate.id === task.id) === index,
+    );
+    setTaskCards(mergedTaskCards);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'task-manager-team-projects-shared') {
+        syncTeamProjectsFromStorage(currentUser.id);
+      }
+
+      if (event.key === 'task-manager-team-task-cards-shared') {
+        const personalTaskCards = loadUserTaskCards(currentUser.id);
+        const sharedTeamTaskCards = loadSharedTeamTaskCards(currentUser.id);
+        const mergedTaskCards = [...personalTaskCards, ...sharedTeamTaskCards].filter(
+          (task, index, all) => all.findIndex((candidate) => candidate.id === task.id) === index,
+        );
+        setTaskCards(mergedTaskCards);
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+    };
   }, [currentUser]);
 
   useEffect(() => {
@@ -985,7 +1126,11 @@ function App() {
       return;
     }
 
-    saveUserTaskCards(currentUser.id, taskCards);
+    const personalTaskCards = taskCards.filter((task) => !isTeamTaskCard(task));
+    const sharedTeamTaskCards = taskCards.filter((task) => isTeamTaskCard(task));
+
+    saveUserTaskCards(currentUser.id, personalTaskCards);
+    saveSharedTeamTaskCards(sharedTeamTaskCards);
   }, [currentUser, taskCards]);
 
   useEffect(() => {
@@ -1163,10 +1308,10 @@ function App() {
                     {isTeamProjectMenuOpen && (
                       <div className="project-picker-popover" role="menu" aria-label="Takım proje listesi">
                         <span className="project-picker-label">Tüm Projeler</span>
-                        {teamProjects.length === 0 ? (
+                        {visibleTeamProjects.length === 0 ? (
                           <div className="muted">Henüz proje eklenmedi.</div>
                         ) : (
-                          teamProjects.map((project) => (
+                          visibleTeamProjects.map((project) => (
                             <div
                               key={project.id}
                               className={`project-picker-item ${project.id === selectedTeamProject?.id ? 'active' : ''}`}
@@ -1204,6 +1349,25 @@ function App() {
                   </button>
                 </div>
               </div>
+              {teamProjectDeleteError && <div className="status-chip error compact team-members-hint">{teamProjectDeleteError}</div>}
+
+              <div
+                className="project-details-panel"
+                style={{
+                  marginTop: 8,
+                  padding: '10px 12px',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: 10,
+                  background: 'rgba(255, 255, 255, 0.03)',
+                }}
+              >
+                <p style={{ margin: 0, color: 'var(--muted)' }}>
+                  <strong style={{ color: 'var(--text)' }}>Açıklama:</strong> {selectedTeamProject?.description || '-'}
+                </p>
+                <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>
+                  <strong style={{ color: 'var(--text)' }}>Tarih:</strong> {selectedTeamProject?.deadline || '-'}
+                </p>
+              </div>
 
               {error && <div className="status-chip error compact team-members-hint">{error}</div>}
             </div>
@@ -1226,10 +1390,10 @@ function App() {
                   <div className="team-column-cards">
                     {teamTasksByStatus[column.status].length > 0 ? (
                       teamTasksByStatus[column.status].map((task) => {
-                        const assignee = selectedTeamProject?.members.find((member) => member.userId === task.assignedToUserId);
-                        const creator = selectedTeamProject?.members.find((member) => member.userId === task.createdByUserId);
+                        const assignee = selectedTeamProject?.members.find((member) => hasUserId(member.userId, task.assignedToUserId));
+                        const creator = selectedTeamProject?.members.find((member) => hasUserId(member.userId, task.createdByUserId));
                         const visibilityNames = (task.visibleToUserIds ?? [])
-                          .map((userId) => selectedTeamProject?.members.find((member) => member.userId === userId)?.name)
+                          .map((userId) => selectedTeamProject?.members.find((member) => hasUserId(member.userId, userId))?.name)
                           .filter((name): name is string => Boolean(name));
                         const canEditTask = canUserEditTeamTask(task);
                         const collaborationModeLabel = getTeamTaskCollaborationMode(task) === 'PRIVATE' ? 'Private' : 'Public';
@@ -1248,7 +1412,6 @@ function App() {
                               {task.dueDate ? <small>{task.dueDate}</small> : <span />}
                             </div>
                             <strong>{task.title}</strong>
-                            <p>{task.purpose}</p>
                             <div className="task-mini-footer" style={{ display: 'block' }}>
                               <small>
                                 Oluşturan: {creator?.name ?? 'Bilinmiyor'}
@@ -1349,22 +1512,10 @@ function App() {
                       id="team-project-deadline"
                       className="task-modal-input"
                       type="date"
-                      onChange={(event) => { /* kept for future use */ }}
+                      value={teamProjectDraft.deadline}
+                      onChange={(event) => setTeamProjectDraft((current) => ({ ...current, deadline: event.target.value }))}
                     />
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                      <input
-                        id="save-as-template"
-                        type="checkbox"
-                        checked={teamModalSaveAsTemplate}
-                        onChange={() => setTeamModalSaveAsTemplate((v) => !v)}
-                      />
-                      <label htmlFor="save-as-template">Şablon olarak kaydet</label>
-                    </div>
-
-                    <div style={{ marginTop: 12, color: 'var(--muted)', fontSize: '0.9rem' }}>
-                      Görünürlük: Internal Team Only
-                    </div>
                   </section>
 
                   <aside className="project-collab">
@@ -1378,7 +1529,10 @@ function App() {
                         className="task-modal-input"
                         placeholder="Kullanıcı ara veya e-posta ekle"
                         value={teamModalSearch}
-                        onChange={(e) => setTeamModalSearch(e.target.value)}
+                        onChange={(e) => {
+                          setTeamModalSearch(e.target.value);
+                          setTeamModalMemberLookupError('');
+                        }}
                       />
                       <button
                         className="primary-button small"
@@ -1393,7 +1547,7 @@ function App() {
                       </button>
                     </div>
 
-                    {error && <div className="status-chip error compact">{error}</div>}
+                    {teamModalMemberLookupError && <div className="status-chip error compact">{teamModalMemberLookupError}</div>}
 
                     <div className="collab-members">
                       {teamMembers.length === 0 ? (
@@ -1411,7 +1565,7 @@ function App() {
                                 <button
                                   className="secondary-button small"
                                   type="button"
-                                  disabled={!isCurrentProjectAdmin || member.userId === currentUser?.id}
+                                  disabled={!isCurrentProjectAdmin || hasUserId(member.userId, currentUser?.id)}
                                   onClick={() => removeTeamMember(member.id)}
                                 >
                                   Kaldır
@@ -1502,7 +1656,7 @@ function App() {
                           <button
                             className="secondary-button small"
                             type="button"
-                            disabled={!isCurrentProjectAdmin || member.userId === currentUser?.id}
+                            disabled={!isCurrentProjectAdmin || hasUserId(member.userId, currentUser?.id)}
                             onClick={() => removeTeamMember(member.id)}
                           >
                             Sil
@@ -1768,7 +1922,6 @@ function App() {
                         {task.dueDate ? <small>{task.dueDate}</small> : <span />}
                       </div>
                       <strong>{task.title}</strong>
-                      <p>{task.purpose}</p>
                       <div className="task-mini-footer">
                         <div className="task-mini-progress">
                           <div className="task-progress-bar">
@@ -1840,6 +1993,19 @@ function App() {
                     rows={5}
                     value={projectDraft.description}
                     onChange={(event) => setProjectDraft((current) => ({ ...current, description: event.target.value }))}
+                  />
+                </section>
+
+                <section className="task-modal-section">
+                  <label className="task-modal-label" htmlFor="project-deadline">
+                    Proje tarihi
+                  </label>
+                  <input
+                    id="project-deadline"
+                    className="task-modal-input"
+                    type="date"
+                    value={projectDraft.deadline}
+                    onChange={(event) => setProjectDraft((current) => ({ ...current, deadline: event.target.value }))}
                   />
                 </section>
               </div>
@@ -1933,7 +2099,6 @@ function App() {
                 <section className="task-progress-card">
                   <div className="section-heading">
                     <h3>Alt görevler ve kontrol listesi</h3>
-                    <span>3</span>
                   </div>
                   <div className="task-progress-shell">
                     <div className="task-progress-bar">
@@ -1946,10 +2111,15 @@ function App() {
 
                   <div className="task-checklist">
                     {taskChecklist.map((subtask) => (
-                      <label className="task-checklist-item" key={subtask.id}>
-                        <input type="checkbox" checked={subtask.done} onChange={() => toggleChecklistItem(subtask.id)} />
-                        <span>{subtask.label}</span>
-                      </label>
+                      <div className="task-checklist-item" key={subtask.id}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                          <input type="checkbox" checked={subtask.done} onChange={() => toggleChecklistItem(subtask.id)} />
+                          <span>{subtask.label}</span>
+                        </label>
+                        <button className="secondary-button small" type="button" onClick={() => removeChecklistItem(subtask.id)}>
+                          Sil
+                        </button>
+                      </div>
                     ))}
 
                     <div className="task-checklist-new-row">
@@ -2079,28 +2249,22 @@ function App() {
                       </button>
                     </div>
                   ))}
-                {selectedProject && selectedProject.ownerUsername === currentUser?.username && ( 
-                  <div className="project-details-panel" style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 8 }}>
-                    {selectedProject.description ? (
-                      <div style={{ marginBottom: 8 }}>
-                        <strong>Açıklama</strong>
-                        <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>{selectedProject.description}</p>
-                      </div>
-                    ) : null}
-                    {selectedProject.deadline ? (
-                      <div>
-                        <strong>Tarih</strong>
-                        <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>{selectedProject.deadline}</p>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
                 </div>
               )}
             </div>
             <p>
               Seçili proje sayfası. Proje adını doğrudan düzenleyebilir ve listeden başka bir proje açabilirsin.
             </p>
+            {selectedProject ? (
+              <div className="project-details-panel" style={{ marginTop: 8 }}>
+                <p style={{ margin: 0, color: 'var(--muted)' }}>
+                  <strong style={{ color: 'var(--text)' }}>Açıklama:</strong> {selectedProject.description || '-'}
+                </p>
+                <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>
+                  <strong style={{ color: 'var(--text)' }}>Tarih:</strong> {selectedProject.deadline || '-'}
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="topbar-actions">

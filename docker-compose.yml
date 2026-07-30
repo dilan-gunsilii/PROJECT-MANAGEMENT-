@@ -26,12 +26,15 @@ services:
       APP_JWT_SECRET: task-manager-backend-dev-secret-key-which-is-long-enough-32chars
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8081
     container_name: taskmanager-frontend
     depends_on:
       - backend
     ports:
-      - "5174:5173"
+      - "5174:80"
 
 volumes:
   postgres_data:
